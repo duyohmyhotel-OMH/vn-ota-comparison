@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>OTA Rate Comparison — Ohmyhotel & Co · VN SCM</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1B2A4A;--gold:#B8953A;
+  --d7:#1E3A5F;--d30:#2D6A4F;--d60:#6B4226;--d90:#5B2D8E;
+  --omh:#7B1D1D;--omh-l:#FFF5F5;
+  --cred:#991B1B;--cred-l:#FEE2E2;
+  --camb:#92400E;--camb-l:#FEF3C7;
+  --cblu:#1E40AF;--cblu-l:#DBEAFE;
+  --cgrn:#14532D;--cgrn-l:#DCFCE7;
+  --border:#E5E7EB;--radius:8px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:#F1F5F9;color:#1a1a1a;min-height:100vh}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes flash{0%{background:#EDE9FE}100%{background:#fffbeb}}
+
+/* TOPBAR */
+.topbar{background:var(--navy);padding:10px 20px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:200;
+  box-shadow:0 2px 12px rgba(0,0,0,.35)}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.logo{height:28px}
+.tb-title{font-size:14px;font-weight:700;color:#fff}
+.tb-sub{font-size:9px;color:rgba(255,255,255,.4);margin-top:1px}
+.tb-right{display:flex;gap:7px;align-items:center}
+.btn{border:none;border-radius:6px;padding:7px 13px;font-size:11px;font-weight:700;
+  cursor:pointer;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.btn:hover{filter:brightness(1.1)}
+.btn-gold{background:var(--gold);color:var(--navy)}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+
+/* DATE STRIP */
+.date-strip{background:var(--navy);border-top:1px solid rgba(255,255,255,.08);
+  display:grid;grid-template-columns:260px repeat(4,1fr);position:sticky;top:51px;z-index:190}
+.ds-lbl{padding:6px 14px;font-size:9px;color:rgba(255,255,255,.35);
+  font-weight:700;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center}
+.ds-col{padding:7px 10px;text-align:center;border-left:2px solid rgba(255,255,255,.1)}
+.dc-l{font-size:11px;font-weight:800;color:#fff;display:block}
+.dc-d{font-size:9px;color:rgba(255,255,255,.5);margin-top:1px;display:block}
+
+/* LEGEND */
+.legend{background:#fff;border-radius:8px;padding:10px 16px;margin-bottom:14px;
+  display:flex;align-items:flex-start;flex-wrap:wrap;gap:10px 20px;
+  border:1px solid var(--border)}
+.legend-title{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;
+  letter-spacing:.4px;white-space:nowrap;margin-right:4px;align-self:center}
+.litem{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600}
+.lc{width:32px;height:14px;border-radius:3px;flex-shrink:0;border:1px solid}
+.legend-rule{width:100%;font-size:10px;color:#6B7280;line-height:1.7;
+  padding-top:4px;border-top:1px solid #F3F4F6;margin-top:4px}
+
+/* CONTENT */
+.content{max-width:1200px;margin:0 auto;padding:16px}
+
+/* HOTEL CARD */
+.hotel-card{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);
+  margin-bottom:16px;overflow:hidden;border:1px solid var(--border);animation:fadeIn .2s ease}
+.hotel-hdr{background:var(--navy);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+.hotel-num{font-size:10px;font-weight:700;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.4px}
+.hotel-acts{display:flex;gap:6px}
+.hotel-info{display:flex;align-items:center;flex-wrap:wrap;gap:4px;
+  padding:8px 16px;background:#F8FAFC;border-bottom:1px solid var(--border)}
+.ilbl{font-size:9px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;padding-right:4px}
+.iinp{border:1.5px solid var(--border);border-radius:6px;padding:5px 9px;font-size:12px;
+  font-weight:600;color:var(--navy);background:#fffbeb;outline:none;transition:border .15s}
+.iinp:focus{border-color:var(--gold);background:#fff}
+.isep{width:1px;height:22px;background:var(--border);margin:0 6px;flex-shrink:0}
+
+/* RATE TABLE */
+.tbl-wrap{overflow-x:auto}
+/* Each row = grid: label col + 4 date cols */
+.row{display:grid;grid-template-columns:260px repeat(4,1fr)}
+.row:not(.row-hdr):not(.row-ota):not(.row-section):hover .cell{background:rgba(0,0,0,.012)}
+.lbl{padding:7px 12px;display:flex;align-items:center;font-size:11px;
+  border-bottom:1px solid #F3F4F6;color:#374151;gap:5px}
+.cell{padding:4px 5px;border-left:1px solid #F3F4F6;border-bottom:1px solid #F3F4F6;
+  display:flex;align-items:center;justify-content:center}
+
+/* Date accent left-border */
+.cell:nth-child(2){border-left:3px solid var(--d7)!important}
+.cell:nth-child(3){border-left:3px solid var(--d30)!important}
+.cell:nth-child(4){border-left:3px solid var(--d60)!important}
+.cell:nth-child(5){border-left:3px solid var(--d90)!important}
+
+/* Row types */
+.row-hdr .lbl{background:#1E293B;color:#94A3B8;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.row-hdr .cell{color:#fff;font-size:9px;font-weight:700;flex-direction:column;gap:1px;border-left:none!important}
+.row-ota .lbl{color:#fff;font-weight:800;font-size:11px}
+.row-section .lbl{background:#E5E7EB;font-size:9px;font-weight:700;color:#4B5563;
+  text-transform:uppercase;letter-spacing:.5px;border-top:2px solid #D1D5DB}
+.row-section .cell{background:#E5E7EB;border-top:2px solid #D1D5DB}
+.row-omh .lbl{background:var(--omh);color:#fff;font-weight:800;border-top:2px solid var(--omh)}
+.row-omh .cell{background:var(--omh-l);border-top:2px solid var(--omh)}
+.spacer .lbl,.spacer .cell{min-height:6px;background:#F1F5F9;border:none}
+
+/* Inputs */
+.rinp{width:100%;border:1.5px solid transparent;border-radius:5px;padding:5px 6px;
+  font-size:12px;font-weight:600;text-align:center;background:#fffbeb;
+  outline:none;transition:all .15s;font-family:inherit;color:#1a1a1a}
+.rinp:focus{border-color:var(--gold);background:#fff}
+.rinp::placeholder{color:#D1D5DB;font-weight:400}
+.rinp.flash{animation:flash .7s ease}
+.rinp-omh{background:var(--omh-l)!important;color:var(--omh)!important;font-size:13px!important;font-weight:700!important}
+.rinp-omh:focus{background:#fff!important;border-color:var(--omh)!important}
+
+/* QUICK FILL */
+.row-qf .lbl{background:#F5F3FF;color:#6D28D9;font-size:9.5px;font-weight:700;border-bottom:1px solid #EDE9FE}
+.row-qf .cell{background:#F5F3FF;border-bottom:1px solid #EDE9FE;border-left:1px solid #EDE9FE;padding:3px 8px;grid-column:2/-1}
+.row-qf{grid-template-columns:260px 1fr!important}
+.qinp{width:100%;border:1.5px solid #DDD6FE;border-radius:5px;padding:4px 8px;
+  font-size:11px;background:#fff;outline:none;font-family:inherit;color:#5B21B6;flex:1}
+.qinp:focus{border-color:#7C3AED}
+.qinp::placeholder{color:#C4B5FD;font-weight:400}
+.qbtn{background:#7C3AED;color:#fff;border:none;border-radius:5px;padding:4px 10px;
+  font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}
+
+/* GAP BADGES */
+.gap{display:inline-flex;align-items:center;justify-content:center;
+  padding:4px 9px;border-radius:12px;font-size:10.5px;font-weight:700;
+  min-width:120px;text-align:center;border:1.5px solid;white-space:nowrap}
+.gap-red{background:var(--cred-l);color:var(--cred);border-color:var(--cred)}
+.gap-amb{background:var(--camb-l);color:var(--camb);border-color:var(--camb)}
+.gap-blu{background:var(--cblu-l);color:var(--cblu);border-color:var(--cblu)}
+.gap-grn{background:var(--cgrn-l);color:var(--cgrn);border-color:var(--cgrn)}
+.gap-na {background:#F3F4F6;color:#9CA3AF;border-color:#E5E7EB}
+
+/* SUMMARY */
+.sum-card{background:#fff;border-radius:10px;margin-bottom:16px;
+  overflow:hidden;border:1px solid var(--border)}
+.sum-hdr{background:linear-gradient(135deg,var(--navy),#2E4472);
+  padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+.sum-hdr span{font-size:12px;font-weight:700;color:#fff}
+.sum-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.sum-tbl th{background:#F1F5F9;padding:7px 10px;font-weight:700;color:#374151;
+  text-align:center;border:1px solid var(--border);font-size:9px;text-transform:uppercase;letter-spacing:.3px}
+.sum-tbl th:first-child{text-align:left}
+.sum-tbl td{padding:6px 10px;border:1px solid #F3F4F6;text-align:center;vertical-align:middle}
+.sum-tbl td:first-child{text-align:left;font-weight:600;color:var(--navy)}
+.sum-tbl tr:nth-child(even) td{background:#FAFAFA}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;
+  display:none;align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:420px;width:100%;
+  padding:22px;box-shadow:0 24px 64px rgba(0,0,0,.4);animation:fadeIn .2s ease}
+.modal h3{font-size:14px;color:var(--navy);margin-bottom:6px}
+.modal p{font-size:11px;color:#6B7280;margin-bottom:12px;line-height:1.7}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:#15803D;color:#fff;padding:9px 18px;border-radius:7px;
+  font-size:12px;font-weight:700;z-index:9999;display:none;
+  box-shadow:0 4px 20px rgba(0,0,0,.25);white-space:nowrap}
+
+@media print{.topbar,.date-strip,.hotel-acts,.tb-right,.legend,.toast,.modal-bg{display:none!important}
+  .content{padding:0}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <svg class="logo" viewBox="0 0 180 38" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="19" cy="19" r="18" fill="#FF5500"/>
+      <circle cx="19" cy="21" r="9.5" fill="none" stroke="white" stroke-width="3"/>
+      <path d="M19 4 C16 9 13 13 14 17 C15.5 13 17.5 10 19 8 C20.5 10 22.5 13 24 17 C25 13 22 9 19 4Z" fill="white"/>
+      <text x="43" y="17" font-family="Arial Black,Arial,sans-serif" font-size="11" font-weight="900" fill="white" letter-spacing="0.8">OHMYHOTEL</text>
+      <text x="43" y="30" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#FFAA55">&amp; Co.</text>
+    </svg>
+    <div>
+      <div class="tb-title">OTA Rate Comparison</div>
+      <div class="tb-sub" id="tbSub"></div>
+    </div>
+  </div>
+  <div class="tb-right">
+    <button class="btn btn-ghost" onclick="exportModal()">⬇ Excel</button>
+    <button class="btn btn-ghost" onclick="shareLink()">🔗 Share Link</button>
+    <button class="btn btn-ghost" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-gold" onclick="addHotel()">＋ Add Hotel</button>
+  </div>
+</div>
+
+<div class="date-strip" id="dateStrip">
+  <div class="ds-lbl">Hotel / Rate</div>
+</div>
+
+<div class="content">
+  <!-- Legend -->
+  <div class="legend">
+    <span class="legend-title">GAP colour</span>
+    <div class="litem"><div class="lc" style="background:var(--cred-l);border-color:var(--cred)"></div>
+      <span style="color:var(--cred)">🔴 OMH ABOVE OTA — Not competitive</span></div>
+    <div class="litem"><div class="lc" style="background:var(--camb-l);border-color:var(--camb)"></div>
+      <span style="color:var(--camb)">🟡 0–15% below OTA — Barely competitive</span></div>
+    <div class="litem"><div class="lc" style="background:var(--cblu-l);border-color:var(--cblu)"></div>
+      <span style="color:var(--cblu)">🔵 15–30% below OTA — Competitive</span></div>
+    <div class="litem"><div class="lc" style="background:var(--cgrn-l);border-color:var(--cgrn)"></div>
+      <span style="color:var(--cgrn)">🟢 &gt;30% below OTA — Very competitive</span></div>
+    <div class="legend-rule">
+      <strong>Formula:</strong> GAP = (OTA Selling − OMH Nett) ÷ OTA Selling × 100 &nbsp;|&nbsp;
+      Positive = OMH is below OTA (competitive). Negative / Red = OMH is above OTA (action required).
+    </div>
+  </div>
+
+  <div id="wrap"></div>
+
+  <!-- Summary -->
+  <div class="sum-card">
+    <div class="sum-hdr">
+      <span>📊 Summary — OMH Nett vs Best OTA Selling Rate</span>
+      <span style="font-size:10px;opacity:.55">Best = lowest selling rate across 4 OTAs</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="sum-tbl">
+        <thead><tr>
+          <th style="min-width:160px">Hotel</th><th>Room</th>
+          <th id="sh0"></th><th id="sh1"></th><th id="sh2"></th><th id="sh3"></th>
+        </tr></thead>
+        <tbody id="sumBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-bg" id="expModal">
+  <div class="modal">
+    <h3>⬇ Export to Excel</h3>
+    <p>Select hotels to include:</p>
+    <div id="expList" style="display:flex;flex-direction:column;gap:7px;margin-bottom:12px;max-height:200px;overflow-y:auto"></div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button onclick="selAll(true)"  style="flex:1;background:#F1F5F9;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px;cursor:pointer;font-weight:600">☑ All</button>
+      <button onclick="selAll(false)" style="flex:1;background:#F1F5F9;border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px;cursor:pointer;font-weight:600">☐ None</button>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="doExport()" style="flex:2;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:10px;font-size:12px;font-weight:700;cursor:pointer">⬇ Export</button>
+      <button onclick="document.getElementById('expModal').classList.remove('open')" style="flex:1;background:#F1F5F9;border:1px solid var(--border);border-radius:7px;padding:10px;font-size:12px;cursor:pointer">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* CONFIG */
+const OTAS=[
+  {name:'AGODA',       dk:'#1E3A5F',lk:'#EFF6FF'},
+  {name:'BOOKING.COM', dk:'#002060',lk:'#EBF5FF'},
+  {name:'TRIP.COM',    dk:'#0059A0',lk:'#FFF7ED'},
+  {name:'TRAVELOKA',   dk:'#007A82',lk:'#F0FDFA'},
+];
+const DC_DAYS=[7,30,60,90];
+const DC_COL=['#1E3A5F','#2D6A4F','#6B4226','#5B2D8E'];
+
+const today=new Date(); today.setHours(0,0,0,0);
+const DATE_LABELS=DC_DAYS.map(d=>{
+  const dt=new Date(today); dt.setDate(dt.getDate()+d);
+  return{d,label:`+${d} Days`,str:dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}),date:dt};
+});
+
+let N=0;
+
+/* GAP logic */
+function calcGap(omh,ota){return ota>0?((ota-omh)/ota*100):null;}
+function gapClass(g){
+  if(g===null)return 'gap-na';
+  if(g<0)     return 'gap-red';
+  if(g<=15)   return 'gap-amb';
+  if(g<=30)   return 'gap-blu';
+  return      'gap-grn';
+}
+function gapLabel(g,diff){
+  if(g===null)return '—';
+  const d=Math.round(Math.abs(diff)).toLocaleString('en-US');
+  if(g<0)  return `⚠ +${Math.abs(g).toFixed(1)}% above OTA`;
+  if(g<=15)return `−${g.toFixed(1)}%  (${d} VND below)`;
+  if(g<=30)return `−${g.toFixed(1)}%  (${d} VND below)`;
+  return   `−${g.toFixed(1)}%  (${d} VND below)`;
+}
+
+/* INIT */
+function init(){
+  document.getElementById('tbSub').textContent=
+    `VN SCM · Rate Intelligence · ${today.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
+
+  const strip=document.getElementById('dateStrip');
+  DATE_LABELS.forEach((dl,i)=>{
+    const div=document.createElement('div');
+    div.className='ds-col';
+    div.style.background=DC_COL[i]+'CC';
+    div.innerHTML=`<span class="dc-l">${dl.label}</span><span class="dc-d">${dl.str}</span>`;
+    strip.appendChild(div);
+  });
+  ['sh0','sh1','sh2','sh3'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML=`<span style="color:${DC_COL[i]};font-weight:800">${DATE_LABELS[i].label}</span><br><small>${DATE_LABELS[i].str}</small>`;
+  });
+
+  if(window.location.hash.startsWith('#d=')) loadHash();
+  else addHotel();
+}
+
+/* ADD HOTEL */
+function addHotel(){
+  N++;
+  const id=`h${N}`;
+  const wrap=document.getElementById('wrap');
+  const div=document.createElement('div');
+  div.className='hotel-card'; div.id=id;
+  div.innerHTML=buildCard(N,id);
+  wrap.appendChild(div);
+  updateSummary();
+}
+
+function buildCard(num,id){
+  let h=`
+  <div class="hotel-hdr">
+    <div class="hotel-num">Hotel #${num}</div>
+    <div class="hotel-acts">
+      <button class="btn btn-ghost" style="padding:4px 10px;font-size:10px" onclick="clearH('${id}')">🗑 Clear</button>
+      <button class="btn" style="padding:4px 10px;font-size:10px;background:#DC2626;color:#fff" onclick="removeH('${id}')">✕ Remove</button>
+    </div>
+  </div>
+  <div class="hotel-info">
+    <span class="ilbl">Code</span>
+    <input class="iinp" id="${id}_code" placeholder="e.g. 732161" style="width:100px" oninput="updateSummary()">
+    <div class="isep"></div>
+    <span class="ilbl">Hotel Name</span>
+    <input class="iinp" id="${id}_name" placeholder="TRU BY HILTON Bac Giang" style="width:220px" oninput="updateSummary()">
+    <div class="isep"></div>
+    <span class="ilbl">Room Type</span>
+    <input class="iinp" id="${id}_room" placeholder="King Bed Room" style="width:150px" oninput="updateSummary()">
+  </div>
+  <div class="tbl-wrap">`;
+
+  /* Date sub-header */
+  h+=`<div class="row row-hdr">
+    <div class="lbl">RATE CATEGORY</div>`;
+  DATE_LABELS.forEach((dl,i)=>
+    h+=`<div class="cell" style="background:${DC_COL[i]}">
+      <span style="font-size:10px;font-weight:800;color:#fff">${dl.label}</span>
+      <span style="font-size:8px;color:rgba(255,255,255,.65)">${dl.str}</span>
+    </div>`);
+  h+=`</div>`;
+
+  /* OTA selling rate rows */
+  OTAS.forEach((ota,oi)=>{
+    h+=`<div class="row row-ota" style="min-height:28px">
+      <div class="lbl" style="background:${ota.dk}">${ota.name}</div>`;
+    DATE_LABELS.forEach((_,ci)=>h+=`<div class="cell" style="background:${ota.dk}18"></div>`);
+    h+=`</div>
+    <div class="row">
+      <div class="lbl" style="background:${ota.lk};padding-left:14px">
+        <span style="font-size:11px;font-weight:600;color:#374151">💰 Selling Rate (VND)</span>
+      </div>`;
+    DATE_LABELS.forEach((_,ci)=>
+      h+=`<div class="cell" style="background:#fffbeb">
+        <input class="rinp" id="${id}_s${oi}_${ci}" placeholder="0" oninput="calc('${id}')">
+      </div>`);
+    h+=`</div>
+    <div class="row row-qf" style="display:grid;grid-template-columns:260px 1fr">
+      <div class="lbl" style="background:#F5F3FF;color:#6D28D9;font-size:9.5px;font-weight:700;border-bottom:1px solid #EDE9FE">
+        ⚡ Quick fill — ${ota.name}
+      </div>
+      <div class="cell" style="background:#F5F3FF;border-left:1px solid #EDE9FE;border-bottom:1px solid #EDE9FE;padding:3px 8px;display:flex;gap:6px">
+        <input class="qinp" id="${id}_qf${oi}" placeholder="Paste 4 rates: 750000, 760000, 850000, 820000 (+7 / +30 / +60 / +90)"
+          onkeydown="if(event.key==='Enter')qf('${id}',${oi})" onpaste="setTimeout(()=>qf('${id}',${oi}),10)">
+        <button class="qbtn" onclick="qf('${id}',${oi})">↵ Apply</button>
+      </div>
+    </div>`;
+  });
+
+  /* OMH Nett Rate */
+  h+=`<div class="row spacer"><div class="lbl"></div>${DATE_LABELS.map(()=>'<div class="cell"></div>').join('')}</div>`;
+  h+=`<div class="row row-omh" style="min-height:36px">
+    <div class="lbl">🏨 OHMYHOTEL Nett Rate (VND)</div>`;
+  DATE_LABELS.forEach((_,ci)=>
+    h+=`<div class="cell">
+      <input class="rinp rinp-omh" id="${id}_omh_${ci}" placeholder="0" oninput="calc('${id}')">
+    </div>`);
+  h+=`</div>`;
+
+  /* GAP comparison — one clean row per OTA */
+  h+=`<div class="row spacer"><div class="lbl"></div>${DATE_LABELS.map(()=>'<div class="cell"></div>').join('')}</div>`;
+  h+=`<div class="row row-section" style="min-height:26px">
+    <div class="lbl">GAP ANALYSIS — OMH Nett vs OTA Selling Rate</div>`;
+  DATE_LABELS.forEach(()=>h+=`<div class="cell"></div>`);
+  h+=`</div>`;
+
+  OTAS.forEach((ota,oi)=>{
+    h+=`<div class="row" style="min-height:32px">
+      <div class="lbl" style="padding-left:14px;font-size:11px;font-weight:600;color:#374151">
+        ${ota.name}
+      </div>`;
+    DATE_LABELS.forEach((_,ci)=>
+      h+=`<div class="cell"><span class="gap gap-na" id="${id}_g${oi}_${ci}">—</span></div>`);
+    h+=`</div>`;
+  });
+
+  h+=`</div>`; /* end tbl-wrap */
+  return h;
+}
+
+/* CALC */
+function calc(id){
+  DATE_LABELS.forEach((_,ci)=>{
+    const omh=parseFloat(document.getElementById(`${id}_omh_${ci}`)?.value)||0;
+    OTAS.forEach((_,oi)=>{
+      const sell=parseFloat(document.getElementById(`${id}_s${oi}_${ci}`)?.value)||0;
+      const el=document.getElementById(`${id}_g${oi}_${ci}`);
+      if(!el) return;
+      if(!omh||!sell){ el.textContent='—'; el.className='gap gap-na'; return; }
+      const g=calcGap(omh,sell);
+      const diff=omh-sell;
+      el.textContent=gapLabel(g,diff);
+      el.className=`gap ${gapClass(g)}`;
+    });
+  });
+  updateSummary();
+}
+
+/* QUICK FILL */
+function qf(id,oi){
+  const inp=document.getElementById(`${id}_qf${oi}`);
+  if(!inp||!inp.value.trim()) return;
+  const parts=inp.value.trim().split(/[,;\t]+|\s{2,}|\s*,\s*/).map(s=>s.trim()).filter(Boolean);
+  const tokens=parts.length>=2?parts:inp.value.trim().split(/\s+/).filter(Boolean);
+  let n=0;
+  tokens.slice(0,4).forEach((v,ci)=>{
+    const clean=v.replace(/,/g,'').replace(/[^0-9.]/g,'');
+    const num=parseFloat(clean);
+    if(!isNaN(num)&&num>0){
+      const el=document.getElementById(`${id}_s${oi}_${ci}`);
+      if(el){el.value=Math.round(num);el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),800);n++;}
+    }
+  });
+  if(n>0){calc(id);inp.value='';inp.placeholder=`✅ ${n} rate${n>1?'s':''} filled`; setTimeout(()=>{inp.placeholder='Paste 4 rates: 750000, 760000, 850000, 820000 (+7 / +30 / +60 / +90)';},3000);}
+  else{inp.style.borderColor='#EF4444';setTimeout(()=>inp.style.borderColor='',2000);}
+}
+
+/* SUMMARY */
+function updateSummary(){
+  const tb=document.getElementById('sumBody'); tb.innerHTML='';
+  document.querySelectorAll('.hotel-card').forEach(card=>{
+    const id=card.id;
+    const code=document.getElementById(`${id}_code`)?.value||'—';
+    const name=document.getElementById(`${id}_name`)?.value||'(Hotel name)';
+    const room=document.getElementById(`${id}_room`)?.value||'—';
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><strong>${code}</strong> ${name}</td><td>${room}</td>`;
+    DATE_LABELS.forEach((_,ci)=>{
+      const omh=parseFloat(document.getElementById(`${id}_omh_${ci}`)?.value)||0;
+      let best=Infinity,bestOta='';
+      OTAS.forEach((ota,oi)=>{const s=parseFloat(document.getElementById(`${id}_s${oi}_${ci}`)?.value)||0;if(s>0&&s<best){best=s;bestOta=ota.name;}});
+      const td=document.createElement('td');
+      if(!omh||best===Infinity){td.innerHTML='<span style="color:#9CA3AF;font-size:10px">—</span>';}
+      else{
+        const g=calcGap(omh,best);
+        const diff=omh-best;
+        td.innerHTML=`<div style="font-size:10px;font-weight:700;color:var(--navy)">OMH: ${Math.round(omh).toLocaleString()}</div>`+
+          `<div style="font-size:9px;color:#6B7280">Best: ${Math.round(best).toLocaleString()} (${bestOta})</div>`+
+          `<span class="gap ${gapClass(g)}" style="font-size:9.5px;margin-top:2px;display:inline-flex;min-width:auto;padding:2px 7px">${gapLabel(g,diff)}</span>`;
+      }
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+}
+
+/* UTILS */
+function clearH(id){document.querySelectorAll(`#${id} input`).forEach(e=>e.value='');calc(id);}
+function removeH(id){
+  if(document.querySelectorAll('.hotel-card').length===1){alert('Keep at least 1 hotel.');return;}
+  if(confirm('Remove this hotel block?')){document.getElementById(id).remove();updateSummary();}
+}
+
+/* SHARE LINK */
+function collect(){
+  return [...document.querySelectorAll('.hotel-card')].map(card=>{
+    const id=card.id;
+    const otas=OTAS.map((_,oi)=>DATE_LABELS.map((_,ci)=>document.getElementById(`${id}_s${oi}_${ci}`)?.value||''));
+    return{
+      code:document.getElementById(`${id}_code`)?.value||'',
+      name:document.getElementById(`${id}_name`)?.value||'',
+      room:document.getElementById(`${id}_room`)?.value||'',
+      otas, rates:otas,  /* 'rates' for backward compat with old links */
+      omh:DATE_LABELS.map((_,ci)=>document.getElementById(`${id}_omh_${ci}`)?.value||''),
+    };
+  });
+}
+function shareLink(){
+  try{
+    const enc=btoa(encodeURIComponent(JSON.stringify(collect())));
+    const url=location.href.split('#')[0]+'#d='+enc;
+    navigator.clipboard.writeText(url).then(()=>showToast('✅ Share link copied!')).catch(()=>prompt('Copy this link:',url));
+  }catch(e){alert('Error: '+e.message);}
+}
+function loadHash(){
+  try{
+    const raw=location.hash.slice(3);  /* remove #d= */
+    const data=JSON.parse(decodeURIComponent(atob(raw)));
+    document.querySelectorAll('.hotel-card').forEach(c=>c.remove());
+    N=0;
+    data.forEach(hotel=>{
+      addHotel();
+      const id=`h${N}`;
+      const se=n=>document.getElementById(n);
+      if(se(`${id}_code`)) se(`${id}_code`).value=hotel.code||'';
+      if(se(`${id}_name`)) se(`${id}_name`).value=hotel.name||'';
+      if(se(`${id}_room`)) se(`${id}_room`).value=hotel.room||'';
+      /* Support old 'rates' key AND new 'otas' key */
+      const rateData=hotel.otas||hotel.rates||[];
+      rateData.forEach((row,oi)=>{
+        (row||[]).forEach((v,ci)=>{
+          const el=se(`${id}_s${oi}_${ci}`);
+          if(el&&v&&Number(v)>0) el.value=Number(v);
+        });
+      });
+      (hotel.omh||[]).forEach((v,ci)=>{
+        const el=se(`${id}_omh_${ci}`);
+        if(el&&v&&Number(v)>0) el.value=Number(v);
+      });
+      calc(id);
+    });
+    showToast('✅ '+data.length+' hotel(s) loaded from shared link');
+  }catch(e){showToast('⚠ Could not load shared data');console.warn(e);}
+}
+
+/* EXPORT EXCEL */
+function exportModal(){
+  const list=document.getElementById('expList'); list.innerHTML='';
+  document.querySelectorAll('.hotel-card').forEach((card,i)=>{
+    const id=card.id;
+    const code=document.getElementById(`${id}_code`)?.value||'(no code)';
+    const name=document.getElementById(`${id}_name`)?.value||'(no name)';
+    list.innerHTML+=`<label style="display:flex;align-items:center;gap:8px;padding:7px;background:#F9FAFB;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;font-weight:500">
+      <input type="checkbox" class="exp-cb" value="${id}" checked style="width:14px;height:14px">
+      #${i+1} — ${code} ${name}</label>`;
+  });
+  document.getElementById('expModal').classList.add('open');
+}
+document.addEventListener('click',e=>{if(e.target===document.getElementById('expModal'))document.getElementById('expModal').classList.remove('open');});
+function selAll(v){document.querySelectorAll('.exp-cb').forEach(c=>c.checked=v);}
+function doExport(){
+  const sel=[...document.querySelectorAll('.exp-cb:checked')].map(c=>c.value);
+  if(!sel.length){alert('Select at least one hotel.');return;}
+  document.getElementById('expModal').classList.remove('open');
+  if(typeof XLSX==='undefined'){alert('SheetJS not loaded yet.');return;}
+  const wb=XLSX.utils.book_new();
+  const rows=[
+    ['Ohmyhotel & Co — VN SCM · OTA Rate Comparison'],
+    [`Report: ${today.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})} | GAP = (OTA Selling − OMH Nett) ÷ OTA Selling × 100%`],
+    [],
+    ['Hotel Code','Hotel Name','Room Type','OTA',...DATE_LABELS.map(d=>d.label+' Selling'),...DATE_LABELS.map(d=>d.label+' OMH Nett'),...DATE_LABELS.map(d=>d.label+' GAP%')],
+  ];
+  sel.forEach(id=>{
+    const code=document.getElementById(`${id}_code`)?.value||'';
+    const name=document.getElementById(`${id}_name`)?.value||'';
+    const room=document.getElementById(`${id}_room`)?.value||'';
+    const omhs=DATE_LABELS.map((_,ci)=>parseFloat(document.getElementById(`${id}_omh_${ci}`)?.value)||0);
+    OTAS.forEach((ota,oi)=>{
+      const sells=DATE_LABELS.map((_,ci)=>parseFloat(document.getElementById(`${id}_s${oi}_${ci}`)?.value)||0);
+      const gaps=DATE_LABELS.map((_,ci)=>sells[ci]&&omhs[ci]?((sells[ci]-omhs[ci])/sells[ci]*100).toFixed(1)+'%':'');
+      rows.push([code,name,room,ota.name,...sells,...omhs,...gaps]);
+    });
+  });
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols']=[{wch:12},{wch:28},{wch:16},{wch:14},...Array(12).fill({wch:14})];
+  XLSX.utils.book_append_sheet(wb,ws,'Rate Comparison');
+  XLSX.writeFile(wb,`OTA_Rate_Comparison_${today.toISOString().slice(0,10)}.xlsx`);
+  showToast('✅ Excel exported');
+}
+
+/* TOAST */
+let _tt=null;
+function showToast(msg,ok=true){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.background=ok?'#15803D':'#DC2626';
+  t.style.display='block'; clearTimeout(_tt);
+  _tt=setTimeout(()=>t.style.display='none',3200);
+}
+
+init();
+</script>
+</body>
+</html>
